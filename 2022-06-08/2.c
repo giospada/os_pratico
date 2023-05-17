@@ -1,3 +1,5 @@
+
+#include <dirent.h>
 #include <libgen.h>
 #include <limits.h>
 #include <stdio.h>
@@ -29,8 +31,7 @@ char *appendIfNotAbsPath(char *path, char *currentPath) {
 int invertlink(char *syslinkPath) {
   char pointedPath[PATH_MAX];
   if (readlink(syslinkPath, pointedPath, PATH_MAX) == -1) {
-    printf("not link file \n");
-    exit(1);
+    return -1;
   }
   char *pathCopy = copystring(syslinkPath);
   char *endPath = appendIfNotAbsPath(pointedPath, dirname(pathCopy));
@@ -44,11 +45,31 @@ int invertlink(char *syslinkPath) {
   return 0;
 }
 
+int explore(int nested, char *path) {
+  invertlink(path);
+  DIR *temp = opendir(path);
+  if (temp == NULL)
+    return -1;
+  struct dirent *current;
+  while ((current = readdir(temp)) != NULL) {
+    if (current->d_name[0] == '.') {
+      continue;
+    }
+
+    char *buffer = malloc(strlen(path) + strlen(current->d_name) + 2);
+    sprintf(buffer, "%s/%s", path, current->d_name);
+    explore(nested + 1, buffer);
+    free(buffer);
+  }
+  closedir(temp);
+  return 0;
+}
+
 int main(int argc, char *argv[]) {
   if (argc != 2) {
     printf("%s [filename] \n", argv[0]);
     return 1;
   }
-  invertlink(argv[1]);
+  explore(0, argv[1]);
   return 0;
 }
